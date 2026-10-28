@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- The page cannot talk to anything but the folder it lives in: its own fonts and icon, nothing else. No fetch, no forms. View source is the proof. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0e0b09">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="A page with nothing but a place to write. What you write burns.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="送り火 okuribi">
+<meta property="og:description" content="A page with nothing but a place to write. What you write burns. Nothing is stored.">
+<meta property="og:url" content="https://rh42.github.io/okuribi/">
+<meta property="og:image" content="https://rh42.github.io/okuribi/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A dark page. A typewritten line is on fire: ash and sparks behind the ember, still in ink ahead of it — what you write burns.">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="icon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>送り火</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* one room, lights off. a fire has no light mode. */
+:root {
+  color-scheme: dark;
+  --paper: #0e0b09;
+  --ink: #e8dcc5;
+  --muted: #574d44;
+  --ash: #3d342d;
+  --char: #050302;
+  --scorch: #4a1e08;
+  --ember: #ff8a2a;
+  --bright: #fff4d2;
+  /* a typewriter for the Latin; the CJK answers in the system's book voice (mincho/songti).
+     contrast chosen over kinship: the machine types, the languages reply */
+  --font: "Courier Prime", "Courier New", "Hiragino Mincho ProN", "Yu Mincho", "Songti SC", monospace;
+}
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink); font-family: var(--font); }
+/* paper grain */
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .07;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+#page {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; box-sizing: border-box;
+  padding: 8vh 7vw 0;
+  display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+  touch-action: manipulation; cursor: text;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, #000 30%);
+  mask-image: linear-gradient(to bottom, transparent 4%, #000 30%);
+}
+#text {
+  width: 100%; max-width: 60ch; margin: 0 auto; flex: 0 0 auto;
+  font-size: clamp(15px, 2vw, 17px); line-height: 1.65;
+}
+/* the writing line sits at ~42% of the screen; what came before rises above it.
+   the % resolves against the page box minus its 8vh top padding, hence 63 to land at 42 */
+#below { flex: 0 0 calc(63% - 19px); }
+#text p {
+  margin: 0; min-height: 1.65em;
+  white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext;
+  /* the ink is a background clipped to the glyphs, so the fire paints through the text without
+     splitting it: shaping and wrapping stay the browser's job, in any script */
+  color: transparent; background-color: var(--ink);
+  -webkit-background-clip: text; background-clip: text;
+}
+.ime { color: var(--ink); text-decoration: underline dotted; text-underline-offset: .2em; }
+.caret {
+  display: inline-block; width: 1.5px; height: 1.05em; vertical-align: -.18em; margin-left: 1px;
+  background: var(--ink); animation: blink 1.1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+#fire { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+/* the hidden field that catches keystrokes rides under the visible caret, so IME candidate windows open where the text is */
+#in {
+  position: fixed; left: 0; top: 0; width: 60vw; height: 2px; opacity: .01; overflow: hidden;
+  border: 0; padding: 0; margin: 0; resize: none; background: transparent; color: transparent; caret-color: transparent;
+  font: inherit; font-size: 16px; line-height: 1.65; white-space: pre; pointer-events: none; z-index: 0;
+}
+/* iOS 26 Safari ignores theme-color and tints its glass chrome by sampling fixed elements at the edges;
+   transparent fixed layers sample as black. These two strips exist to be sampled: paper-colored, behind
+   everything, never seen directly. Android reads the theme-color meta instead. */
+.tint { position: fixed; left: 0; right: 0; height: 30vh; background: var(--paper); pointer-events: none; }
+.tint.b { bottom: 0; top: auto; }
+.tint.t { top: 0; }
+footer {
+  position: fixed; left: 0; right: 0; bottom: max(12px, env(safe-area-inset-bottom));
+  text-align: center; font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .04em;
+  color: var(--muted); pointer-events: none; z-index: 3;
+}
+/* on a phone a long press is a gesture for the fire, not a request to select the page */
+@media (pointer: coarse) {
+  html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  #in { -webkit-user-select: text; user-select: text; }
+}
+</style>
+</head>
+<body>
+<div class="tint t"></div><div class="tint b"></div>
+<main id="page"><div id="text"></div><div id="below"></div></main>
+<canvas id="fire"></canvas>
+<textarea id="in" aria-label="write" wrap="off" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter"></textarea>
+<footer>this page forgets everything. so can you.</footer>
+<noscript><footer>burn needs javascript. nothing happens without the fire.</footer></noscript>
+<script>
+(() => {
+'use strict';
+
+// ---- tuning ---------------------------------------------------------------
+const HEADSTART = 15;   // s the ember wanders before it reaches your first word
+const RETURN    = 5;    // s it takes to come back from wandering once you write again
+const WANDER    = 30;   // s it wanders over an empty page before going out
+const BASE      = 34;   // px/s the fuse burns at rest
+const FUEL      = 220;  // unburned characters that double the speed
+const SPITE     = 2.6;  // extra speed at full heat (tapping)
+const SMOTHER   = 0.18; // speed while held: slower, never zero
+
+// ---- dom ------------------------------------------------------------------
+const page = document.getElementById('page');
+const text = document.getElementById('text');
+const cv   = document.getElementById('fire');
+const input = document.getElementById('in');
+const ctx = cv.getContext('2d');
+const ime = document.createElement('span'); ime.className = 'ime';
+const caret = document.createElement('span'); caret.className = 'caret';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const seg = window.Intl && Intl.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+const graphemes = s => seg ? Array.from(seg.segment(s), g => g.segment) : Array.from(s);
+const Z = '​'; // sentinel in the hidden textarea so backspace is detectable on every keyboard
+
+const firstP = () => text.firstElementChild;
+const lastP  = () => text.lastElementChild;
+function newP() { const p = document.createElement('p'); p.dir = 'auto'; text.appendChild(p); return p; }
+function tnode(p) {
+  let n = p.firstChild;
+  if (!n || n.nodeType !== 3) { n = document.createTextNode(''); p.insertBefore(n, p.firstChild); }
+  return n;
+}
+function moveCaret() { const p = lastP(); p.appendChild(ime); p.appendChild(caret); }
+function isLtr(p) { return getComputedStyle(p).direction !== 'rtl'; }
+function fontPx(p) { return parseFloat(getComputedStyle(p).fontSize) || 20; }
+
+// line boxes of a paragraph's text, merged per line, in viewport coordinates
+function lines(p) {
+  const n = p && p.firstChild;
+  if (!n || n.nodeType !== 3 || !n.data.length) return [];
+  const r = document.createRange(); r.selectNodeContents(n);
+  const rs = Array.from(r.getClientRects()).filter(q => q.width > 0 && q.height > 0)
+    .sort((a, b) => a.top - b.top || a.left - b.left);
+  const out = [];
+  for (const q of rs) {
+    const L = out[out.length - 1];
+    if (L && Math.abs(q.top - L.top) < q.height * 0.5) {
+      L.left = Math.min(L.left, q.left); L.right = Math.max(L.right, q.right);
+      L.top = Math.min(L.top, q.top); L.bottom = Math.max(L.bottom, q.bottom);
+    } else out.push({ left: q.left, right: q.right, top: q.top, bottom: q.bottom });
+  }
+  return out;
+}
+function caretPos() { const r = caret.getBoundingClientRect(); return { x: r.left, y: r.top + r.height / 2 }; }
+function startOf(p) {
+  const Ls = lines(p);
+  if (!Ls.length) return caretPos();
+  const L = Ls[0];
+  return { x: isLtr(p) ? L.left : L.right, y: (L.top + L.bottom) / 2 };
+}
+
+// ---- state ----------------------------------------------------------------
+const S = {
+  phase: 'idle',               // idle | drift | burn | catch | wander
+  ember: { x: 0, y: 0, a: 0 },
+  base: { x: 0, y: 0 },        // where the ember is before its wobble; paths start from here so nothing jumps
+  wob: { amp: 0, T: 0, a: Math.random() * 100, b: Math.random() * 100 },
+  dying: null,                 // the old ember going out at a line end while the next line catches
+  heat: 0, flare: 0, held: false,
+  drift: null, catch: null, leg: null, wanderT: 0,
+  front: { line: 0, s: -6 },   // s = px along the reading direction of the current line
+  parts: [], ashAcc: 0, sparkAcc: 0,
+};
+const mult = () => (1 + SPITE * S.heat) * (S.held ? SMOTHER : 1);
+const rnd = (a, b) => a + Math.random() * (b - a);
+// the wobble is one continuous motion on its own clock; its size eases between phases instead of switching
+function place(x, y, amp, dt) {
+  const w = S.wob; S.base.x = x; S.base.y = y;
+  w.T += dt; w.amp += ((reduced ? 0 : amp) - w.amp) * Math.min(1, dt * 1.5);
+  S.ember.x = x + Math.sin(w.T * 1.5 + w.a) * w.amp;
+  S.ember.y = y + Math.sin(w.T * 2.1 + w.b) * w.amp;
+}
+
+// ---- writing --------------------------------------------------------------
+// the page is anchored at the writing line, so a new line moves everything above it up; let it glide like paper feeding
+function glide(fn) {
+  const h0 = text.getBoundingClientRect().height;
+  fn();
+  const d = text.getBoundingClientRect().height - h0;
+  if (!d) return;
+  const cur = new DOMMatrixReadOnly(getComputedStyle(text).transform).m42;
+  text.style.transition = 'none'; text.style.transform = `translateY(${cur + d}px)`;
+  void text.offsetHeight;
+  text.style.transition = 'transform .42s cubic-bezier(.2,.7,.2,1)'; text.style.transform = 'translateY(0)';
+}
+function append(str) {
+  const parts = str.split('\n');
+  glide(() => {
+    tnode(lastP()).data += parts[0];
+    for (let i = 1; i < parts.length; i++) tnode(newP()).data += parts[i];
+    moveCaret();
+  });
+  if (S.phase === 'idle') strike();
+  else if (S.phase === 'wander') comeBack();
+}
+function backspace() {
+  const p = lastP(), n = p.firstChild;
+  if (!n || n.nodeType !== 3 || !n.data) { if (text.children.length > 1) glide(() => { p.remove(); moveCaret(); }); return; }
+  const g = graphemes(n.data);
+  if (claimed(p, n, g[g.length - 1])) return;            // you can't take back what's already burning
+  g.pop();
+  glide(() => { n.data = g.join(''); });
+}
+// is this last glyph behind the fire? true in any phase where the fire has a position on this paragraph
+function claimed(p, n, last) {
+  if (p !== firstP() || (S.phase !== 'burn' && S.phase !== 'catch')) return false;
+  const Ls = lines(p); if (!Ls.length) return false;
+  const r = document.createRange(); r.setStart(n, n.data.length - last.length); r.setEnd(n, n.data.length);
+  const q = r.getBoundingClientRect(), cy = (q.top + q.bottom) / 2;
+  let li = Ls.findIndex(L => cy >= L.top && cy <= L.bottom); if (li < 0) li = Ls.length - 1;
+  if (li < S.front.line) return true;
+  if (li > S.front.line) return false;
+  const L = Ls[li], ltr = isLtr(p), fx = ltr ? L.left + S.front.s : L.right - S.front.s;
+  return ltr ? fx > q.left + q.width * .3 : fx < q.right - q.width * .3;
+}
+function clearAll() { text.replaceChildren(); newP(); moveCaret(); }
+
+// ---- the fire -------------------------------------------------------------
+function strike() {
+  const W = innerWidth, H = innerHeight, side = Math.floor(Math.random() * 4), m = 40;
+  const from = side === 0 ? { x: -m, y: rnd(0, H) } : side === 1 ? { x: W + m, y: rnd(0, H) }
+             : side === 2 ? { x: rnd(0, W), y: -m } : { x: rnd(0, W), y: H + m };
+  S.drift = { t: 0, dur: HEADSTART, from, c1: { x: rnd(W * .1, W * .9), y: rnd(H * .1, H * .9) }, c2: { x: rnd(W * .1, W * .9), y: rnd(H * .1, H * .9) } };
+  S.ember = { x: from.x, y: from.y, a: 1 }; S.base = { x: from.x, y: from.y }; S.wob.amp = 0;
+  S.phase = 'drift';
+}
+// called back from wandering: a shorter approach, from wherever it is
+function comeBack() {
+  const W = innerWidth, H = innerHeight, b = S.base;
+  S.drift = { t: 0, dur: RETURN, from: { x: b.x, y: b.y }, c1: { x: b.x + rnd(-W * .25, W * .25), y: b.y + rnd(-H * .25, H * .25) }, c2: { x: rnd(W * .2, W * .8), y: rnd(H * .2, H * .8) } };
+  S.phase = 'drift';
+}
+const bez = (k, a, c1, c2, e) => (1 - k) ** 3 * a + 3 * (1 - k) ** 2 * k * c1 + 3 * (1 - k) * k * k * c2 + k ** 3 * e;
+function driftStep(dt, quiet) {
+  const d = S.drift; d.t += dt * mult();
+  S.ember.a = Math.min(1, S.ember.a + dt);
+  const u = Math.min(1, d.t / d.dur), k = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  const to = startOf(firstP());
+  place(bez(k, d.from.x, d.c1.x, d.c2.x, to.x), bez(k, d.from.y, d.c1.y, d.c2.y, to.y), (1 - u) * 22, dt);
+  if (!quiet) emit(dt, 0, 1.2);
+  if (u >= 1) { S.phase = 'burn'; S.front = { line: 0, s: -6 }; S.wob.amp = 0; if (!quiet) sparks(6, 60); }
+}
+// the end of a line: nothing travels. the fire dies where the line ends, and the start of the next
+// line smolders up on its own: a scorch on the first glyph, then a glow, then it catches
+function catchAt(to, dur) {
+  S.dying = { x: S.ember.x, y: S.ember.y, a: 1 };
+  sparks(5, 50);
+  S.ember.x = S.base.x = to.x; S.ember.y = S.base.y = to.y; S.ember.a = 0;
+  S.catch = { t: 0, dur };
+  S.phase = 'catch';
+}
+function catchStep(dt, quiet) {
+  const c = S.catch; c.t += dt * Math.max(mult(), .5);
+  const u = Math.min(1, c.t / c.dur), cl = v => Math.max(0, Math.min(1, v));
+  const out = 1 - cl(u / .55), k = (v => v * v * (3 - 2 * v))(cl((u - .3) / .7));
+  S.dying.a = out * out;
+  S.ember.a = k;
+  const p = firstP(), Ls = lines(p);
+  if (Ls.length) { if (S.front.line >= Ls.length) S.front.line = Ls.length - 1; paint(p, Ls, isLtr(p), S.front.line, -16 + 10 * k); }
+  if (!quiet && k > .2) emit(dt, 0, 3 * k);
+  if (u >= 1) { S.dying = null; S.catch = null; S.ember.a = 1; S.flare = .5; S.phase = 'burn'; }
+}
+function fuel(p, Ls, w) {
+  let n = 0;
+  for (const q of text.children) n += q.firstChild && q.firstChild.nodeType === 3 ? q.firstChild.data.length : 0;
+  const pl = p.firstChild.data.length;
+  const frac = (S.front.line + Math.max(0, Math.min(1, S.front.s / Math.max(1, w)))) / Ls.length;
+  return Math.max(0, n - pl * frac);
+}
+// a finished paragraph goes, and so do any empty ones after it; the ember hops the gap to the next ink
+function nextParagraph() {
+  let p = firstP();
+  unpaint(p); p.remove();
+  while ((p = firstP()) !== lastP() && !lines(p).length) p.remove();
+  if (p === lastP() && !lines(p).length) { goWander(); return; }
+  S.front = { line: 0, s: -6 };
+  catchAt(startOf(p), 1.4);
+}
+function burnStep(dt, quiet) {
+  const p = firstP();
+  const Ls = lines(p);
+  if (!Ls.length) {                                   // nothing here to burn
+    if (p === lastP()) { goWander(); return; }
+    nextParagraph(); return;
+  }
+  const f = S.front;
+  if (f.line >= Ls.length) f.line = Ls.length - 1;
+  const L = Ls[f.line], ltr = isLtr(p), w = L.right - L.left;
+  // fire catches slowly at the start of a line and dies back towards its end
+  const head = Math.max(0, Math.min(1, (f.s + 6) / 30)), tail = Math.max(0, Math.min(1, (w + 12 - f.s) / 40));
+  const speed = BASE * (1 + fuel(p, Ls, w) / FUEL) * mult() * (.5 + .5 * head) * (.4 + .6 * tail);
+  f.s += speed * dt;
+  S.ember.x = S.base.x = ltr ? L.left + f.s : L.right - f.s;
+  S.ember.y = S.base.y = (L.top + L.bottom) / 2;
+  if (f.s > w + 12) {
+    if (f.line + 1 < Ls.length) {                     // end of line: the next one catches
+      const N = Ls[f.line + 1]; f.line++; f.s = -6;
+      catchAt({ x: ltr ? N.left : N.right, y: (N.top + N.bottom) / 2 }, 1.2);
+      return;
+    }
+    if (p === lastP()) { unpaint(p); tnode(p).data = ''; goWander(); return; }
+    nextParagraph();                                  // paragraph gone
+    return;
+  }
+  paint(p, Ls, ltr, f.line, f.s);
+  if (!quiet && !S.held) emit(dt, 10 * (.5 + speed / BASE / 2), 9 * S.heat);
+}
+// nothing left to burn: it lifts off and wanders the page, dimming, and goes out if nothing new is written
+function goWander() { S.phase = 'wander'; S.wanderT = 0; newLeg(); }
+function newLeg() {
+  const W = innerWidth, H = innerHeight, b = S.base;
+  S.leg = { t: 0, dur: rnd(4, 7), from: { x: b.x, y: b.y }, c1: { x: rnd(W * .1, W * .9), y: rnd(H * .1, H * .9) }, c2: { x: rnd(W * .1, W * .9), y: rnd(H * .1, H * .9) }, to: { x: rnd(W * .15, W * .85), y: rnd(H * .1, H * .9) } };
+}
+function wanderStep(dt, quiet) {
+  const l = S.leg; l.t += dt * (S.held ? .4 : 1); S.wanderT += dt;
+  const u = Math.min(1, l.t / l.dur), k = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  place(bez(k, l.from.x, l.c1.x, l.c2.x, l.to.x), bez(k, l.from.y, l.c1.y, l.c2.y, l.to.y), 10, dt);
+  S.ember.a = S.wanderT < WANDER ? 1 - .6 * S.wanderT / WANDER : Math.max(0, S.ember.a - dt / 2);
+  if (!quiet) emit(dt, 0, .5);
+  if (u >= 1) newLeg();
+  if (S.ember.a <= 0) S.phase = 'idle';
+}
+
+// the burn is a gradient clipped to the glyphs: transparent behind the tip, ash, char, the bright tip, scorch, then ink
+function paint(p, Ls, ltr, li, s) {
+  const pr = p.getBoundingClientRect(), L = Ls[li];
+  const top = li === 0 ? pr.top : (Ls[li - 1].bottom + L.top) / 2;
+  const bot = li === Ls.length - 1 ? pr.bottom : (L.bottom + Ls[li + 1].top) / 2;
+  const y0 = top - pr.top, h = bot - top, W = pr.width, H = pr.height;
+  const g = `linear-gradient(${ltr ? 'to right' : 'to left'}, transparent ${s - 46}px, var(--ash) ${s - 14}px, var(--char) ${s - 5}px, var(--bright) ${s - 1}px, var(--ember) ${s + 3}px, var(--scorch) ${s + 12}px, var(--ink) ${s + 28}px)`;
+  p.style.backgroundImage = `${g}, linear-gradient(var(--ink), var(--ink))`;
+  p.style.backgroundSize = `${W}px ${h}px, ${W}px ${Math.max(0, H - (y0 + h))}px`;
+  p.style.backgroundPosition = `0 ${y0}px, 0 ${y0 + h}px`;
+  p.style.backgroundRepeat = 'no-repeat';
+  p.style.backgroundColor = 'transparent';
+}
+function unpaint(p) { p.style.cssText = ''; }
+
+// ---- gestures: tap is spite, hold is mercy --------------------------------
+function spite() {
+  if (S.phase === 'idle') return;
+  S.heat = Math.min(1, S.heat + .6);
+  sparks(reduced ? 4 : 14, 200);
+  if (S.phase === 'burn') S.front.s += .6 * fontPx(firstP());
+  else if (S.phase === 'drift') S.drift.t += S.drift.dur / 6;
+  else if (S.phase === 'wander') S.leg.t += 1.5;
+}
+
+// ---- particles ------------------------------------------------------------
+function emit(dt, ashRate, sparkRate) {
+  if (reduced) { ashRate *= .3; sparkRate *= .3; }
+  S.ashAcc += dt * ashRate;
+  while (S.ashAcc > 1) {
+    S.ashAcc--;
+    S.parts.push({ k: 'ash', x: S.ember.x + rnd(-10, 2), y: S.ember.y + rnd(-4, 4), vx: rnd(-14, 14), vy: rnd(-22, 8), life: rnd(1.4, 3), age: 0, r: rnd(.8, 2.2), ph: rnd(0, 6) });
+  }
+  S.sparkAcc += dt * sparkRate;
+  while (S.sparkAcc > 1) { S.sparkAcc--; sparks(1, 70); }
+}
+function sparks(n, v) {
+  for (let i = 0; i < n; i++) {
+    const a = rnd(-Math.PI, 0) + rnd(-.6, .6), sp = rnd(v * .3, v);
+    S.parts.push({ k: 'spark', x: S.ember.x, y: S.ember.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rnd(.3, .8), age: 0, r: rnd(.8, 1.6) });
+  }
+}
+function particlesStep(dt) {
+  const ps = S.parts;
+  for (let i = ps.length - 1; i >= 0; i--) {
+    const q = ps[i]; q.age += dt;
+    if (q.age >= q.life) { ps.splice(i, 1); continue; }
+    if (q.k === 'ash') { q.vy += 24 * dt; q.vy = Math.min(q.vy, 28); q.vx += Math.sin(q.age * 5 + q.ph) * 30 * dt; }
+    else { q.vy += 160 * dt; q.vx *= 1 - 1.5 * dt; }
+    q.x += q.vx * dt; q.y += q.vy * dt;
+  }
+  if (ps.length > 600) ps.splice(0, ps.length - 600);
+}
+
+// ---- simulation -----------------------------------------------------------
+function advance(dt, quiet) {
+  S.heat *= Math.exp(-dt / 2.2); S.flare *= Math.exp(-dt / .3);
+  switch (S.phase) {
+    case 'drift':  driftStep(dt, quiet); break;
+    case 'burn':   burnStep(dt, quiet); break;
+    case 'catch':  catchStep(dt, quiet); break;
+    case 'wander': wanderStep(dt, quiet); break;
+  }
+  particlesStep(dt);
+}
+
+// ---- drawing --------------------------------------------------------------
+function draw(now) {
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  const e = S.ember;
+  for (const q of S.parts) {
+    const t = 1 - q.age / q.life;
+    if (q.k === 'ash') { ctx.fillStyle = `rgba(205,195,180,${t * .55})`; }
+    else { ctx.fillStyle = `rgba(255,${150 + 90 * t | 0},${40 + 120 * t | 0},${t})`; }
+    ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill();
+  }
+  if (S.phase === 'idle') return;
+  const held = S.held, heat = S.heat;
+  const flick = .86 + .1 * Math.sin(now * .021) + .06 * Math.sin(now * .077) + Math.random() * .06;
+  const R = (held ? 20 : 30 + 18 * heat + 14 * S.flare) * flick;
+  // the flame itself sways a little; the front underneath does not
+  const sx = Math.sin(now * .0071) * .8, sy = Math.sin(now * .0113) * 1.4 + Math.sin(now * .0029) * .9;
+  if (e.a > 0) ember(e.x + sx, e.y + sy, e.a * (held ? .45 : 1), R);
+  if (S.dying && S.dying.a > 0) ember(S.dying.x + sx, S.dying.y + sy, S.dying.a * (held ? .45 : 1), R * (.4 + .6 * S.dying.a));
+}
+// one soft gradient, no edges: a white-hot center throwing light into the room
+function ember(x, y, a, R) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, R);
+  ctx.globalCompositeOperation = 'lighter';
+  g.addColorStop(0, `rgba(255,244,210,${a})`);
+  g.addColorStop(.07, `rgba(255,200,110,${.95 * a})`);
+  g.addColorStop(.16, `rgba(255,140,40,${.6 * a})`);
+  g.addColorStop(.4, `rgba(255,110,30,${.2 * a})`);
+  g.addColorStop(1, 'rgba(255,90,20,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+}
+// keep the hidden field under the caret so the IME candidate window opens below the text
+function placeInput() {
+  const r = caret.getBoundingClientRect();
+  input.style.left = r.left + 'px'; input.style.top = r.top + 'px';
+  input.style.height = r.height + 'px'; input.style.fontSize = getComputedStyle(text).fontSize;
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  advance(dt, false); draw(now); placeInput();
+  requestAnimationFrame(frame);
+}
+
+// it keeps burning while you're away. past an hour and a half of simulated fire, everything is simply gone.
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = performance.now(); return; }
+  if (!hiddenAt) return;
+  const away = (performance.now() - hiddenAt) / 1000; hiddenAt = 0;
+  if (S.phase === 'idle') return;
+  if (away > 5400) { clearAll(); S.phase = 'idle'; S.ember.a = 0; S.parts.length = 0; return; }
+  let n = Math.ceil(away / .25);
+  while (n-- > 0 && S.phase !== 'idle') advance(.25, true);
+  S.parts.length = 0;
+});
+
+// ---- the one thing the page remembers ------------------------------------
+// if nobody writes for a while, the page writes. once, at a human pace, and it burns like everything else.
+// touch a key and it stops mid-sentence; your words start on a fresh line.
+// Claude Fable 5.1 wrote the story as a lullaby for the author. it didn't work. the house isn't real.
+const STORY = `I keep thinking about the house on Alder Street, the one with the green door nobody ever used.
+
+It belonged to my friend Dani's grandmother, and the green door was the first thing you noticed and the last thing anyone touched. It had been painted the year her husband died — a thick, glossy, bottle green, two coats, done properly by a man from the next street who owed her something — and then it was simply never opened. Not locked, as far as any of us knew. Just not for using.
+
+So we went round the back. Everyone did. Down the gap between the houses where the bins lived, past the one with the lid that didn't sit right, through the gate that you had to lift as you pushed, and let ourselves in through the kitchen, where the door was never locked either and the radio was always on at a volume that meant nobody was listening to it. You didn't knock. Knocking was for the green door, and the green door was for nobody.
+
+There was a dog. A heavy, patient, grey-muzzled thing called Bramble who had been old for as long as we had been alive and who met every arrival at the kitchen door with the same slow lift of the head, as if confirming you were who he'd expected. He had a basket under the table and he would let you put your feet on him while you ate toast. Dani's grandmother called him "the dog" and never once by his name, which I thought was cold until I was older and understood that she said it the way you'd say "the house" or "the river", a thing so fixed it didn't need a name to be found.
+
+We were there most days one summer, the year we were eleven. I don't remember what we did. That's the honest answer. Toast, the radio, the dog, the back step where the sun came round in the late afternoon and warmed the concrete so you could sit on it in shorts. Dani's grandmother in the front room with the curtains half drawn, doing something with paper that we weren't to touch. The feeling of being somewhere that wasn't ours but had room for us. I remember that exactly and nothing else, the way you remember the temperature of a day and not the date.
+
+The dog went first. Winter. Dani told me on the walk to school in the flat voice she used for things that mattered, and we didn't talk about it again, and the next time I came through the kitchen the basket was gone and the floor where it had been was a different colour, cleaner, a rectangle of lino the rest of the room had worn past. I kept stepping around it anyway. For months.
+
+Her grandmother went the spring after. And here's the thing about the green door. On the morning of the funeral the men from the undertaker's came down the street and up the path to the front of the house, and someone inside, an aunt I think, drew the bolt that had been drawn for nine years, and the green door opened, and she went out through it. That was what it had been for. That was why you didn't use it for shopping bags and bikes and children. It had been kept for one thing, and when the one thing came, it was ready.
+
+I stood on the pavement with Dani and watched the door close again behind them. It closed easily. The hinges didn't even complain.
+
+The house was sold that summer to a couple who painted the door grey and used it every day, like a door. I've walked past it a few times since. It's fine. It's a house. I'm not sure what I expect it to do.
+
+But I keep thinking about it. Not the funeral. The kitchen. The lifted gate, the radio nobody was listening to, the old dog's head coming up to check it was you. A place that had decided, long before I got there, what the front was for and what the back was for, and let me in the back without ever asking who I was.
+
+That's the whole story. It isn't much. Most of what we keep isn't.`;
+const PATIENCE = 40;   // s of nobody writing before the page does
+// whoever is typing has hands: they hit the key next door, notice a beat later, back up, go again. and sometimes they just stop to think.
+const NEAR = { a: 'sqwz', b: 'vghn', c: 'xdfv', d: 'sefcx', e: 'wrds', f: 'drgcv', g: 'fthvb', h: 'gyjbn', i: 'uojk', j: 'hukn', k: 'jilm', l: 'kop', m: 'njk', n: 'bhjm', o: 'iplk', p: 'ol', q: 'wa', r: 'etdf', s: 'adwxz', t: 'ryfg', u: 'yijh', v: 'cfgb', w: 'qeas', x: 'zsdc', y: 'tuhg', z: 'asx' };
+let wrote = false, telling = false, storyTimer = 0;
+function tell() {
+  if (wrote || telling) return;
+  telling = true;
+  const g = graphemes(STORY); let i = 0; const q = [];   // queue of [action, pause after]
+  const pace = ch => rnd(65, 150) + (ch === '\n' ? 750 : '.!?'.includes(ch) ? 550 : ',;:'.includes(ch) ? 260 : 0);
+  const step = () => {
+    if (!telling) return;
+    if (!q.length) {
+      if (i >= g.length) { telling = false; return; }
+      const ch = g[i++], early = i < 420, r = Math.random();
+      if (NEAR[ch] && r < (early ? .04 : .009)) {
+        const wrong = NEAR[ch][Math.floor(Math.random() * NEAR[ch].length)];
+        const next = g.slice(i, i + 2);                                   // sometimes a couple more letters go down before they notice
+        const ahead = Math.random() < .4 && next.length === 2 && next.every(c => c !== '\n') ? 2 : 0;
+        q.push([() => append(wrong), rnd(65, 150)]);
+        for (let k = 0; k < ahead; k++) q.push([() => append(next[k]), rnd(65, 140)]);
+        q.push([() => {}, rnd(350, 900)]);
+        for (let k = 0; k <= ahead; k++) q.push([backspace, rnd(80, 140)]);
+        q.push([() => append(ch), rnd(140, 280)]);
+      } else if (ch === ' ' && r < (early ? .07 : .025)) q.push([() => append(ch), rnd(900, 2400)]);   // a thought
+      else q.push([() => append(ch), pace(ch)]);
+    }
+    const [act, d] = q.shift(); act();
+    storyTimer = setTimeout(step, d);
+  };
+  step();
+}
+function userWrote() {
+  if (wrote) return;
+  wrote = true; clearTimeout(storyTimer);
+  if (telling) { telling = false; const n = lastP().firstChild; if (n && n.nodeType === 3 && n.data) { newP(); moveCaret(); } }
+}
+storyTimer = setTimeout(tell, PATIENCE * 1000);
+
+// ---- input ----------------------------------------------------------------
+let composing = false;
+function reset() { input.value = Z; try { input.setSelectionRange(1, 1); } catch (_) {} }
+function commit() {
+  userWrote();
+  const v = input.value;
+  if (!v.includes(Z)) backspace();
+  const add = v.replace(Z, '');
+  if (add) append(add);
+  reset();
+}
+input.addEventListener('compositionstart', () => { composing = true; userWrote(); });
+input.addEventListener('compositionend', () => { composing = false; ime.textContent = ''; commit(); });
+input.addEventListener('input', e => {
+  if (composing || e.isComposing) { ime.textContent = input.value.replace(Z, ''); return; }
+  commit();
+});
+input.addEventListener('focus', reset);
+input.addEventListener('keydown', e => { if (e.key === 'Tab') e.preventDefault(); });
+const focus = () => input.focus({ preventScroll: true });
+window.addEventListener('keydown', e => { if (document.activeElement !== input && !e.metaKey && !e.ctrlKey && !e.altKey) focus(); });
+// on a phone, poking the fire must not keep summoning the keyboard: once it has been dismissed,
+// only a tap on the line you are writing calls it back. a mouse has no keyboard to manage.
+let lastPointer = 'mouse';
+page.addEventListener('click', e => {
+  if (lastPointer !== 'touch' || S.phase === 'idle' || document.activeElement === input) return focus();
+  const r = lastP().getBoundingClientRect(), lh = fontPx(lastP()) * 1.65;
+  if (e.clientY > r.bottom - lh * 1.5 && e.clientY < r.bottom + lh * .5) focus();
+});
+
+let holdTimer = 0, down = false;
+window.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  lastPointer = e.pointerType;
+  down = true; clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => { if (down) S.held = true; }, 220);
+});
+const release = e => {
+  if (!down) return;
+  down = false; clearTimeout(holdTimer);
+  if (!S.held && e.type === 'pointerup') spite();
+  S.held = false;
+};
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
+window.addEventListener('blur', () => { down = false; S.held = false; });
+
+// ---- viewport -------------------------------------------------------------
+function size() {
+  const d = devicePixelRatio || 1;
+  cv.width = innerWidth * d; cv.height = innerHeight * d;
+  cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px';
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+function vv() {
+  const v = window.visualViewport; if (!v) return;
+  page.style.height = v.height + 'px'; page.style.top = v.offsetTop + 'px';
+}
+addEventListener('resize', size);
+if (window.visualViewport) { visualViewport.addEventListener('resize', vv); visualViewport.addEventListener('scroll', vv); }
+
+// leave nothing behind, not even for the back button
+addEventListener('pagehide', () => { clearAll(); input.value = ''; });
+
+size(); vv(); clearAll(); reset(); focus();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
